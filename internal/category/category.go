@@ -1,8 +1,8 @@
 package category
 
 import (
-	"category_api/entity"
-	"category_api/helper"
+	"cashier_api/entity"
+	"cashier_api/helper"
 	"encoding/json"
 	"net/http"
 	"strconv"

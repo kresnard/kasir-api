@@ -1,7 +1,7 @@
 package main
 
 import (
-	"category_api/internal/category"
+	"cashier_api/internal/category"
 	"encoding/json"
 	"log"
 	"net/http"
