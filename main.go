@@ -1,14 +1,26 @@
 package main
 
 import (
-	"cashier_api/internal/category"
 	"encoding/json"
+	"fmt"
+	"kasir_api/database"
+	"kasir_api/handler"
+	"kasir_api/repository"
+	"kasir_api/service"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
+	"github.com/spf13/viper"
 )
+
+type Config struct {
+	Port   string `mapstructure:"PORT"`
+	DBConn string `mapstructure:"DB_CONN"`
+}
 
 func main() {
 	r := chi.NewRouter()
@@ -17,6 +29,30 @@ func main() {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.RedirectSlashes)
+
+	viper.AutomaticEnv()
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+
+	if _, err := os.Stat(".env"); err == nil {
+		viper.SetConfigFile(".env")
+		_ = viper.ReadInConfig()
+	}
+
+	config := Config{
+		Port:   viper.GetString("PORT"),
+		DBConn: viper.GetString("DB_CONN"),
+	}
+
+	// Setup database
+	db, err := database.InitDB(config.DBConn)
+	if err != nil {
+		log.Fatal("Failed to initialize database:", err)
+	}
+	defer db.Close()
+
+	productRepo := repository.NewProductRepository(db)
+	productService := service.NewProductService(productRepo)
+	productHandler := handler.NewProductHandler(productService)
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -29,15 +65,20 @@ func main() {
 	})
 
 	r.Route("/api", func(r chi.Router) {
-		r.Route("/categories", func(r chi.Router) {
-			r.Get("/", category.GetCategories)
-			r.Get("/{id}", category.GetCategoryByID)
-			r.Post("/", category.CreateCategory)
-			r.Delete("/{id}", category.DeleteCategory)
-			r.Put("/{id}", category.UpdateCategory)
+		r.Route("/products", func(r chi.Router) {
+			r.Get("/", productHandler.GetAll)
+			r.Get("/{id}", productHandler.GetByID)
+			r.Post("/", productHandler.Create)
+			r.Delete("/{id}", productHandler.Delete)
+			r.Put("/{id}", productHandler.Update)
 		})
 	})
 
-	log.Println("server running on :8080")
-	log.Fatal(http.ListenAndServe(":8080", r))
+	addr := "0.0.0.0:" + config.Port
+	fmt.Println("Server running di", addr)
+
+	err = http.ListenAndServe(addr, r)
+	if err != nil {
+		fmt.Println("gagal running server", err)
+	}
 }
