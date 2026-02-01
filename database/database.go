@@ -2,15 +2,12 @@ package database
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 
 	_ "github.com/lib/pq"
 )
 
 func InitDB(connectionString string) (*sql.DB, error) {
-	fmt.Println("DB_CONN:", connectionString)
-
 	// Open database
 	db, err := sql.Open("postgres", connectionString)
 	if err != nil {
